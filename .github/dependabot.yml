@@ -1,0 +1,7 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+  # Add npm / pip entries when apps/landing, apps/pwa, apps/platform and ml have manifests.

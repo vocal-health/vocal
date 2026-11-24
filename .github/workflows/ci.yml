@@ -1,0 +1,29 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: No audio, models or oversized files in git
+        run: bash scripts/check_no_data.sh
+      - name: No obvious secrets
+        run: bash scripts/check_secrets.sh
+  landing-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Build landing page if present
+        run: |
+          if [ -f apps/landing/package.json ]; then
+            cd apps/landing && npm ci && npm run build
+          else
+            echo "apps/landing not added yet; skipping"
+          fi

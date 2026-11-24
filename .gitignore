@@ -1,0 +1,44 @@
+# Data, audio and models never go in git (see data/README.md)
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.opus
+*.m4a
+*.webm
+*.aac
+*.pt
+*.pth
+*.safetensors
+*.ckpt
+*.onnx
+*.bin
+*.npy
+*.npz
+data/*
+!data/README.md
+!data/manifests/
+!data/manifests/**
+# Private working material (lives in the separate private repo vocal-private)
+private/
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa*
+# Python
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
+# Node
+node_modules/
+dist/
+.vite/
+# OS and editors
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "DRAFT derived from charter section 9. Not final; to be reviewed with clinical advisors and linguists.",
+  "title": "Phrase item",
+  "type": "object",
+  "required": ["item_id", "version", "status", "language", "clinical_area", "risk_level", "english_meaning"],
+  "properties": {
+    "item_id": {"type": "string"},
+    "version": {"type": "integer", "minimum": 1},
+    "status": {"enum": ["draft", "in_review", "approved", "retired"]},
+    "language": {"enum": ["wol", "ful", "mnk"]},
+    "variety": {"type": "string"},
+    "region": {"type": "string"},
+    "clinical_area": {"enum": ["maternal_antenatal", "sexual_reproductive_health", "general_outpatient", "child_health_malaria"]},
+    "risk_level": {"enum": ["routine", "sensitive", "critical"]},
+    "source": {"type": "string"},
+    "english_meaning": {"type": "string"},
+    "text": {"type": "string"},
+    "reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["step", "reviewer_pseudonym", "date", "outcome"],
+        "properties": {
+          "step": {"enum": ["translate", "back_translate", "clinician_check", "record", "audio_check"]},
+          "reviewer_pseudonym": {"type": "string"},
+          "date": {"type": "string", "format": "date"},
+          "outcome": {"enum": ["approved", "changes_requested"]}
+        }
+      }
+    }
+  }
+}
