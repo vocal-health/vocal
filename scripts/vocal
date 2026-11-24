@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# vocal: plain-English helper for the everyday git steps in this repository.
+set -euo pipefail
+
+NOREPLY="45072701+mbjallow6@users.noreply.github.com"
+TYPES="feat|fix|docs|chore|refactor|test|ci|build|style|perf"
+
+say()  { printf '%s\n' "$*"; }
+die()  { printf 'stop: %s\n' "$*" >&2; exit 1; }
+ask()  { local a; read -r -p "$1 [y/N] " a; [ "$a" = "y" ] || [ "$a" = "Y" ]; }
+branch() { git rev-parse --abbrev-ref HEAD; }
+root() { git rev-parse --show-toplevel 2>/dev/null || die "run this inside the vocal folder"; }
+
+pr_url() {
+  local url path
+  url=$(git remote get-url origin)
+  path=${url#*:}; path=${path#//*/}; path=${path%.git}
+  case "$url" in
+    https://github.com/*) path=${url#https://github.com/}; path=${path%.git} ;;
+    *:*) path=${url#*:}; path=${path%.git} ;;
+  esac
+  printf 'https://github.com/%s/pull/new/%s\n' "$path" "$(branch)"
+}
+
+cmd_help() {
+cat <<'T'
+vocal start <words>        begin new work on a fresh branch (example: vocal start docs fix readme typo)
+vocal status               show which branch you are on and what changed
+vocal save "type: message" check, commit (signed off) and upload your work
+vocal pr                   print the link that opens the pull request
+vocal done                 after the pull request is merged: tidy up and return to main
+Types for save: feat fix docs chore refactor test ci build style perf
+Example: vocal save "docs: fix typo in README"
+T
+}
+
+cmd_status() {
+  root >/dev/null
+  say "branch: $(branch)"
+  git --no-pager status --short
+  [ -n "$(git status --short)" ] || say "nothing changed"
+}
+
+cmd_start() {
+  root >/dev/null
+  [ $# -ge 1 ] || die "give a few words, for example: vocal start docs fix readme typo"
+  [ -z "$(git status --porcelain)" ] || die "you have unsaved changes; run: vocal save \"type: message\" first"
+  local slug name
+  slug=$(printf '%s ' "$@" | tr 'A-Z' 'a-z' | sed 's/[^a-z0-9]\{1,\}/-/g; s/^-//; s/-$//')
+  [ -n "$slug" ] || die "could not make a branch name from those words"
+  name="chore/$slug"
+  if printf '%s' "${slug%%-*}" | grep -Eq "^($TYPES)$" && [ "$slug" != "${slug%%-*}" ]; then
+    name="${slug%%-*}/${slug#*-}"
+  fi
+  git switch main
+  git pull --ff-only
+  git switch -c "$name"
+  say "ready on branch $name"
+}
+
+cmd_save() {
+  root >/dev/null
+  [ $# -eq 1 ] || die 'give one message in quotes, for example: vocal save "docs: fix typo"'
+  local msg=$1 b email
+  b=$(branch)
+  [ "$b" != "main" ] || die "you are on main, which is protected; run: vocal start <words>"
+  printf '%s' "$msg" | grep -Eq "^($TYPES)(\([a-z0-9-]+\))?!?: .+" \
+    || die "message must look like: type: text  (types: ${TYPES//|/ })"
+  email=$(git config user.email || true)
+  [ "$email" = "$NOREPLY" ] || die "git email is '$email', expected the noreply address; fix with: git config --local user.email $NOREPLY"
+  [ -n "$(git status --porcelain)" ] || die "nothing to save"
+  git add -A
+  say "files in this save:"
+  git --no-pager diff --cached --name-status
+  [ ! -x scripts/check_no_data.sh ] && [ ! -f scripts/check_no_data.sh ] || bash scripts/check_no_data.sh
+  [ ! -f scripts/check_secrets.sh ] || bash scripts/check_secrets.sh
+  ask "commit and upload these?" || { git reset -q; die "cancelled; nothing committed"; }
+  git commit -s -m "$msg"
+  git push -u origin "$b"
+  say "next, open: $(pr_url)"
+}
+
+cmd_pr() { root >/dev/null; [ "$(branch)" != main ] || die "you are on main"; pr_url; }
+
+cmd_done() {
+  root >/dev/null
+  [ -z "$(git status --porcelain)" ] || die "you have unsaved changes"
+  git switch main
+  git pull --ff-only
+  git fetch --prune
+  local gone b
+  gone=$(git for-each-ref --format='%(refname:short) %(upstream:track)' refs/heads | awk '$2=="[gone]"{print $1}')
+  if [ -z "$gone" ]; then say "no finished branches to remove"; return; fi
+  for b in $gone; do
+    ask "delete local branch $b (its pull request is merged)?" && git branch -D "$b"
+  done
+}
+
+c=${1:-help}; [ $# -eq 0 ] || shift
+case "$c" in
+  start) cmd_start "$@" ;; save) cmd_save "$@" ;; status) cmd_status ;;
+  pr) cmd_pr ;; done) cmd_done ;; help|-h|--help) cmd_help ;;
+  *) die "unknown command '$c'; run: vocal help" ;;
+esac
